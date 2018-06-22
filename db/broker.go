@@ -5,6 +5,8 @@ import (
 	"fmt"
 	_ "github.com/lib/pq"
 	utils "s3-aws-api/utils"
+        "log"
+        "io/ioutil"
 )
 
 var brokerdb *sql.DB
@@ -17,6 +19,7 @@ func Init(brokerdburl string) {
 	db.SetMaxIdleConns(4)
 	db.SetMaxOpenConns(20)
 	brokerdb = db
+        createDB(brokerdb)
 
 }
 func Delete(bucketname string) {
@@ -77,3 +80,20 @@ func getDBStats() {
 	fmt.Printf("Number of Open Connections: %d\n", brokerdb.Stats().OpenConnections)
 
 }
+
+func createDB(db *sql.DB) {
+        buf, err := ioutil.ReadFile("./create.sql")
+        if err != nil {
+                buf, err = ioutil.ReadFile("../create.sql")
+                if err != nil {
+                        log.Println("Error: Unable to run migration scripts, could not load create.sql.")
+                        log.Fatalln(err)
+                }
+        }
+        _, err = db.Query(string(buf))
+        if err != nil {
+                log.Println("Error: Unable to run migration scripts, execution failed.")
+                log.Fatalln(err)
+        }
+}
+
