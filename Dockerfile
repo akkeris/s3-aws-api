@@ -8,8 +8,10 @@ ADD db /go/src/s3-aws-api/db
 ADD structs /go/src/s3-aws-api/structs
 ADD s3 /go/src/s3-aws-api/s3
 ADD utils /go/src/s3-aws-api/utils
+ADD create.sql /go/src/s3-aws-api/create.sql
 ADD build.sh /build.sh
 RUN chmod +x /build.sh
 RUN /build.sh
-CMD ["/go/src/s3-aws-api/server"]
+WORKDIR /go/src/s3-aws-api/
+CMD ["./server"]
 EXPOSE 3500
