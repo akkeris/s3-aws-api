@@ -3,11 +3,29 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"io/ioutil"
 	_ "github.com/lib/pq"
 	utils "s3-aws-api/utils"
 )
 
 var brokerdb *sql.DB
+
+func CreateDB(db *sql.DB) {
+	buf, err := ioutil.ReadFile("./create.sql")
+	if err != nil {
+		buf, err = ioutil.ReadFile("../create.sql")
+		if err != nil {
+			fmt.Println("Error: Unable to run migration scripts, could not load create.sql.")
+			os.Exit(1)
+		}
+	}
+	_, err = db.Query(string(buf))
+	if err != nil {
+		fmt.Println("Error: Unable to run migration scripts, execution failed.")
+		os.Exit(1)
+	}
+}
 
 func Init(brokerdburl string) {
 	db, dberr := sql.Open("postgres", brokerdburl)
@@ -16,6 +34,7 @@ func Init(brokerdburl string) {
 	}
 	db.SetMaxIdleConns(4)
 	db.SetMaxOpenConns(20)
+	CreateDB(db)
 	brokerdb = db
 
 }
