@@ -12,5 +12,6 @@ ADD utils /go/src/s3-aws-api/utils
 ADD build.sh /build.sh
 RUN chmod +x /build.sh
 RUN /build.sh
+WORKDIR /go/src/s3-aws-api/
 CMD ["/go/src/s3-aws-api/server"]
 EXPOSE 3500
