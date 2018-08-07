@@ -54,5 +54,4 @@ type S3spec struct {
         Bucket    string `json:"S3_BUCKET"`
 	Accesskey string `json:"S3_ACCESS_KEY"`
 	Secretkey string `json:"S3_SECRET_KEY"`
-        Region    string `json:"S3_REGION"`
 }
