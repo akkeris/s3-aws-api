@@ -34,7 +34,7 @@ func main() {
 func url2(params martini.Params, r render.Render) {
 	rlocation, raccesskey, rsecretkey := octdb.Retrieve(params["name"])
 
-	r.JSON(200, map[string]string{"S3_BUCKET": params["name"], "S3_LOCATION": rlocation, "S3_ACCESS_KEY": raccesskey, "S3_SECRET_KEY": rsecretkey})
+	r.JSON(200, map[string]string{"S3_BUCKET": params["name"], "S3_LOCATION": rlocation, "S3_ACCESS_KEY": raccesskey, "S3_SECRET_KEY": rsecretkey, "S3_REGION": os.Getenv("REGION")})
 }
 
 func createname() string {
@@ -87,6 +87,7 @@ func provision(spec structs.Provisionspec, err binding.Errors, r render.Render) 
         s3spec.Bucket = basename
 	s3spec.Accesskey = s3user.Accesskey
 	s3spec.Secretkey = s3user.Secretkey
+	s3spec.Region = os.Getenv("REGION")
 	octdb.Store(s3user.Username, s3spec.Location, s3spec.Accesskey, s3spec.Secretkey, spec.Billingcode)
 	r.JSON(200, s3spec)
 }
