@@ -3,10 +3,11 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"io/ioutil"
-	_ "github.com/lib/pq"
+	"os"
 	utils "s3-aws-api/utils"
+
+	_ "github.com/lib/pq"
 )
 
 var brokerdb *sql.DB
@@ -20,7 +21,8 @@ func CreateDB(db *sql.DB) {
 			os.Exit(1)
 		}
 	}
-	_, err = db.Query(string(buf))
+	defer db.Close()
+	_, err = db.Exec(string(buf))
 	if err != nil {
 		fmt.Println("Error: Unable to run migration scripts, execution failed.")
 		os.Exit(1)
