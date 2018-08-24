@@ -2,24 +2,26 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-martini/martini"
-	"github.com/martini-contrib/binding"
-	"github.com/martini-contrib/render"
-	"github.com/nu7hatch/gouuid"
+	"os"
 	octdb "s3-aws-api/db"
 	octiam "s3-aws-api/iam"
 	octs3 "s3-aws-api/s3"
 	structs "s3-aws-api/structs"
 	utils "s3-aws-api/utils"
-        "strconv"
+	"strconv"
 	"strings"
 	"time"
-	"os"
+
+	"github.com/go-martini/martini"
+	"github.com/martini-contrib/binding"
+	"github.com/martini-contrib/render"
+	"github.com/nu7hatch/gouuid"
 )
 
 func main() {
 	brokerdb := utils.Init()
-	octdb.Init(brokerdb)
+	db := octdb.Init(brokerdb)
+	defer db.Close()
 	m := martini.Classic()
 	m.Use(render.Renderer())
 	m.Get("/v1/s3/plans", plans)
@@ -32,16 +34,21 @@ func main() {
 }
 
 func url2(params martini.Params, r render.Render) {
-	rlocation, raccesskey, rsecretkey := octdb.Retrieve(params["name"])
-
+	if !octdb.ValidBucket(params["name"]) {
+		r.Text(400, "Bad Request")
+		return
+	}
+	rlocation, raccesskey, rsecretkey, err := octdb.Retrieve(params["name"])
+	if err != nil {
+		r.Text(500, err.Error())
+	}
 	r.JSON(200, map[string]string{"S3_BUCKET": params["name"], "S3_LOCATION": rlocation, "S3_ACCESS_KEY": raccesskey, "S3_SECRET_KEY": rsecretkey, "S3_REGION": os.Getenv("REGION")})
 }
 
 func createname() string {
-
 	u, _ := uuid.NewV4()
 	newusername := "u" + strings.Split(u.String(), "-")[0]
-	newusername = os.Getenv("NAME_PREFIX")+"-" + newusername
+	newusername = os.Getenv("NAME_PREFIX") + "-" + newusername
 	return newusername
 }
 
@@ -69,22 +76,22 @@ func provision(spec structs.Provisionspec, err binding.Errors, r render.Render) 
 	var s3spec structs.S3spec
 	basename := createname()
 	s3user := octiam.Createuser(basename)
-	bucketlocation := octs3.Createbucket(s3user.Username,spec.Plan)
+	bucketlocation := octs3.Createbucket(s3user.Username, spec.Plan)
 	octs3.Tagbucket(basename, "billingcode", spec.Billingcode)
-        sleeptimestring := os.Getenv("S3_BUCKET_POLICY_WAIT_SECONDS")
-        if len(sleeptimestring) == 0 {
-               sleeptimestring="10"
-        }
-        sleeptime, cerr := strconv.ParseInt(sleeptimestring, 10, 64)
-        if cerr != nil {
-            fmt.Println("Unable to get sleeptime")
-        }
-        time.Sleep( time.Second * time.Duration(sleeptime))
+	sleeptimestring := os.Getenv("S3_BUCKET_POLICY_WAIT_SECONDS")
+	if len(sleeptimestring) == 0 {
+		sleeptimestring = "10"
+	}
+	sleeptime, cerr := strconv.ParseInt(sleeptimestring, 10, 64)
+	if cerr != nil {
+		fmt.Println("Unable to get sleeptime")
+	}
+	time.Sleep(time.Second * time.Duration(sleeptime))
 	octs3.Addbucketpolicy(s3user.Username, s3user)
 	simpleuserpolicy := octiam.Createuserpolicy(s3user.Username, s3user.Username)
 	octiam.Attachuserpolicy(s3user.Username, simpleuserpolicy)
 	s3spec.Location = bucketlocation
-        s3spec.Bucket = basename
+	s3spec.Bucket = basename
 	s3spec.Accesskey = s3user.Accesskey
 	s3spec.Secretkey = s3user.Secretkey
 	s3spec.Region = os.Getenv("REGION")
@@ -93,14 +100,16 @@ func provision(spec structs.Provisionspec, err binding.Errors, r render.Render) 
 }
 
 func delete(params martini.Params, r render.Render) {
-
 	bucketname := params["name"]
+	if !octdb.ValidBucket(params["name"]) {
+		r.Text(400, "Bad Request")
+		return
+	}
 	octs3.Deletebucket(bucketname)
 	octiam.Detachuserpolicy(bucketname)
 	octiam.Deleteaccesskey(bucketname)
 	octiam.Deleteuser(bucketname)
 	octdb.Delete(bucketname)
-
 }
 
 func runtest(billingcode string) {
@@ -112,5 +121,4 @@ func runtest(billingcode string) {
 	octs3.Addbucketpolicy(s3user.Username, s3user)
 	simpleuserpolicy := octiam.Createuserpolicy(s3user.Username, s3user.Username)
 	octiam.Attachuserpolicy(s3user.Username, simpleuserpolicy)
-
 }
