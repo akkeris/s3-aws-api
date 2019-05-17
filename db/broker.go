@@ -56,7 +56,6 @@ func Delete(bucketname string) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println(affect, "rows changed")
 	getDBStats()
 
 }
