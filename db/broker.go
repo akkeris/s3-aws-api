@@ -52,7 +52,7 @@ func Delete(bucketname string) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	affect, err := res.RowsAffected()
+	_, err = res.RowsAffected()
 	if err != nil {
 		fmt.Println(err)
 	}
