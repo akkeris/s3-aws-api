@@ -17,19 +17,21 @@ func CreateDB(db *sql.DB) {
 	if err != nil {
 		buf, err = ioutil.ReadFile("../create.sql")
 		if err != nil {
+			db.Close()
 			fmt.Println("Error: Unable to run migration scripts, could not load create.sql.")
 			os.Exit(1)
 		}
 	}
-	defer db.Close()
+
 	_, err = db.Exec(string(buf))
 	if err != nil {
+		db.Close()
 		fmt.Println("Error: Unable to run migration scripts, execution failed.")
 		os.Exit(1)
 	}
 }
 
-func Init(brokerdburl string) {
+func Init(brokerdburl string) *sql.DB {
 	db, dberr := sql.Open("postgres", brokerdburl)
 	if dberr != nil {
 		fmt.Println(dberr)
@@ -38,7 +40,7 @@ func Init(brokerdburl string) {
 	db.SetMaxOpenConns(20)
 	CreateDB(db)
 	brokerdb = db
-
+	return brokerdb
 }
 func Delete(bucketname string) {
 
@@ -71,30 +73,31 @@ func Store(bucketname string, location string, accesskey string, secretkey strin
 	getDBStats()
 }
 
-func Retrieve(bucketname string) (l string, a string, s string) {
+func Retrieve(bucketname string) (l string, a string, s string, e error) {
 	getDBStats()
-	stmt, err := brokerdb.Prepare("select  location, accesskey_enc, secretkey_enc from provision where bucketname = $1 ")
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer stmt.Close()
-	rows, err := stmt.Query(bucketname)
-	defer rows.Close()
+
 	var location string
 	var accesskey_enc string
 	var secretkey_enc string
-	for rows.Next() {
-		err := rows.Scan(&location, &accesskey_enc, &secretkey_enc)
-		if err != nil {
-			fmt.Println(err)
-		}
-	}
-	getDBStats()
-	return location, utils.Decrypt(accesskey_enc), utils.Decrypt(secretkey_enc)
 
+	err := brokerdb.QueryRow("SELECT location, accesskey_enc, secretkey_enc FROM provision WHERE bucketname = $1", bucketname).Scan(&location, &accesskey_enc, &secretkey_enc)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	getDBStats()
+	return location, utils.Decrypt(accesskey_enc), utils.Decrypt(secretkey_enc), nil
 }
 
 func getDBStats() {
 	fmt.Printf("Number of Open Connections: %d\n", brokerdb.Stats().OpenConnections)
+}
 
+func ValidBucket(bucketname string) bool {
+	var exists bool
+	err := brokerdb.QueryRow("SELECT EXISTS (SELECT FROM provision WHERE bucketname = $1)", bucketname).Scan(&exists)
+	if err != nil {
+		return false
+	}
+	return exists
 }

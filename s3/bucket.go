@@ -3,12 +3,14 @@ package s3
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
 	structs "s3-aws-api/structs"
 	utils "s3-aws-api/utils"
 	"strings"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 func Createbucket(bucketname string, plan string) string {
@@ -64,14 +66,13 @@ func Addbucketpolicy(bucketname string, s3user structs.S3user) {
 		Bucket: aws.String(bucketname),
 		Policy: aws.String(jsonStr),
 	}
-         
-	_, err= svc.PutBucketPolicy(params)
+
+	_, err = svc.PutBucketPolicy(params)
 
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
-
 
 }
 
@@ -86,7 +87,8 @@ func gettags(bucketname string) []*s3.Tag {
 	}
 	resp, err := svc.GetBucketTagging(params)
 
-	if err != nil {
+	// NoSuchTagSet means there aren't any tags, which is fine
+	if err != nil && err.(awserr.Error).Code() != "NoSuchTagSet" {
 		fmt.Println(err.Error())
 	}
 
@@ -123,7 +125,6 @@ func Tagbucket(bucketname string, name string, value string) {
 		return
 	}
 
-
 }
 
 func Deletebucket(bucketname string) {
@@ -141,7 +142,6 @@ func Deletebucket(bucketname string) {
 		fmt.Println(err.Error())
 		return
 	}
-
 
 }
 
@@ -163,7 +163,6 @@ func setVersioning(bucketname string) {
 		fmt.Println(err.Error())
 		return
 	}
-
 
 }
 
